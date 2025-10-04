@@ -21,22 +21,27 @@ export const getExercises = async (req, res) => {
 // Add new exercise for user
 export const addExercise = async (req, res) => {
   try {
-    const { user_id, name, category } = req.body;
+    const { user_id, name, category, is_default } = req.body;
 
     const result = await pool.query(
-      'INSERT INTO exercises (name, category, is_default) VALUES ($1, $2, FALSE) RETURNING *',
-      [name, category]
+      `INSERT INTO exercises (name, category, is_default)
+       VALUES ($1, $2, COALESCE($3, FALSE))
+       RETURNING *`,
+      [name, category, is_default]
     );
+
     const exercise = result.rows[0];
 
-    // Link to user
-    await pool.query(
-      'INSERT INTO user_exercises (user_id, exercise_id) VALUES ($1, $2)',
-      [user_id, exercise.id]
-    );
+    if (user_id) {
+      await pool.query(
+        'INSERT INTO user_exercises (user_id, exercise_id) VALUES ($1, $2)',
+        [user_id, exercise.id]
+      );
+    }
 
     res.json(exercise);
   } catch (err) {
+    console.error("Error adding exercise:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
